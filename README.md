@@ -1,6 +1,6 @@
 # RSA ML Attack: Advanced Machine Learning Approaches to RSA Cryptanalysis
 
-This project implements cutting-edge machine learning models for RSA semiprime factorization research, building on prior work by Murat et al. and Nene & Uludag with novel architectural innovations.
+This project implements new machine learning models for RSA semiprime factorization research, building on prior work by Murat et al. and Nene & Uludag with novel architectural innovations.
 
 ## 🎯 Project Overview
 
@@ -32,7 +32,8 @@ This project implements cutting-edge machine learning models for RSA semiprime f
 
 ```bash
 # Clone the repository
-cd rsa_ml_attack
+git clone https://github.com/AureliusNguyen/ML-RSA.git
+cd ML-RSA/rsa_ml_attack
 
 # Install dependencies
 pip install -r requirements.txt
@@ -142,26 +143,49 @@ Current performance on small dataset (N < 10,000):
 - Develop quantum-classical factorization strategies
 - Create adaptive cryptanalysis tools
 
-## 📁 Project Structure
+## 📁 Repository Structure
 
 ```
-rsa_ml_attack/
-├── src/
-│   ├── crypto_utils.py          # ECPP/GNFS feature engineering
-│   └── models/
-│       ├── baseline_lstm.py     # Murat et al. reproduction
-│       ├── transformer_factorizer.py  # Mathematical transformer
-│       ├── factorization_gan.py # Adversarial prime generation
-│       └── hybrid_cnn_rnn.py   # Multi-scale hybrid model
-├── generate_data.py            # Dataset generation script
-├── train_binary_models.py     # Binary LSTM training
-├── train_dual_loss.py        # Dual output LSTM training  
-├── train_enhanced_models.py   # Transformer with enhanced features
-├── train_gan.py              # GAN training script
-├── fix_data_leakage.py       # Data leakage correction (one-time use)
-├── evaluate_models.py        # Model evaluation utilities
-├── test_models.py           # Model verification tests
-└── experiments/             # Training results and saved models
+ML-RSA/
+├── .gitignore                   
+├── README.md                    
+├── Pre-Research/                # Research background
+│   ├── Integer Prime Factorization with Deep Learning.pdf
+│   ├── MLApproachtoIntegerSemiprimeFactorisation.pdf
+│   ├── application.md 
+│   └── nguy5272_UROP_Spring2020 (1).pdf
+├── kaggle_testing/             # Experimental notebooks and testing
+│   ├── kaggle_binary_train.py
+│   └── kaggle_binary_train_fixed.py
+└── rsa_ml_attack/              # Main ML implementation
+    ├── src/
+    │   ├── crypto_utils.py      # ECPP/GNFS feature engineering
+    │   └── models/
+    │       ├── baseline_lstm.py     # Murat et al. reproduction
+    │       ├── transformer_factorizer.py  # Mathematical transformer
+    │       ├── factorization_gan.py # Adversarial prime generation
+    │       └── hybrid_cnn_rnn.py   # Multi-scale hybrid model
+    ├── data/                    # Clean datasets (no data leakage)
+    │   ├── small_train.csv, small_test.csv, small_metadata.json
+    │   ├── medium_train.csv, medium_test.csv, medium_metadata.json
+    │   └── tiny_train.csv, tiny_test.csv, tiny_metadata.json
+    ├── experiments/             # Training results and saved models
+    │   ├── transformer_enhanced_small/  # Best model results
+    │   ├── binary_training_small/
+    │   ├── dual_training_small/
+    │   └── gan_training_small/
+    ├── scripts/archive/         # Historical scripts
+    │   └── fix_data_leakage.py  # Data leakage correction (archived)
+    ├── generate_data.py         # Dataset generation script
+    ├── train_binary_models.py   # Binary LSTM training
+    ├── train_dual_loss.py      # Dual output LSTM training  
+    ├── train_enhanced_models.py # Transformer with enhanced features
+    ├── train_gan.py            # GAN training script
+    ├── evaluate_models.py      # Model evaluation utilities
+    ├── test_models.py          # Model verification tests
+    ├── requirements.txt        # Python dependencies
+    ├── setup.py               # Package installation
+    └── README.md              # Project-specific documentation
 ```
 
 ## 🎓 Research Context
