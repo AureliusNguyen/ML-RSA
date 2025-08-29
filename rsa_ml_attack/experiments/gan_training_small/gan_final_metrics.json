@@ -1,0 +1,8 @@
+{
+  "factorization_accuracy": 0.10416666666666667,
+  "dataset": "small",
+  "epochs": 30,
+  "batch_size": 4,
+  "feature_size": 125,
+  "factor_size": 7
+}

@@ -1,0 +1,22 @@
+{
+  "dataset_name": "medium",
+  "description": "N < 100,000 (Murat scale)",
+  "num_samples": 3520,
+  "max_value": 99973,
+  "max_semiprime_bits": 17,
+  "max_factor_bits": 9,
+  "train_samples": 2816,
+  "test_samples": 704,
+  "format": "clean_no_leakage",
+  "columns": [
+    "N",
+    "p"
+  ],
+  "generation_config": {
+    "name": "medium",
+    "num_samples": 20000,
+    "description": "N < 100,000 (Murat scale)",
+    "max_value": 100000
+  },
+  "data_leakage_verified": "NONE"
+}

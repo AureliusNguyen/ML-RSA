@@ -1,0 +1,22 @@
+{
+  "dataset_name": "small",
+  "description": "N < 10,000 (Murat scale)",
+  "num_samples": 237,
+  "max_value": 9991,
+  "max_semiprime_bits": 14,
+  "max_factor_bits": 7,
+  "train_samples": 189,
+  "test_samples": 48,
+  "format": "clean_no_leakage",
+  "columns": [
+    "N",
+    "p"
+  ],
+  "generation_config": {
+    "name": "small",
+    "num_samples": 2000,
+    "description": "N < 10,000 (Murat scale)",
+    "max_value": 10000
+  },
+  "data_leakage_verified": "NONE"
+}

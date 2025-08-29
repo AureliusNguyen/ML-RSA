@@ -1,0 +1,13 @@
+{
+  "beta_0": 0.1041666641831398,
+  "beta_1": 0.2083333283662796,
+  "beta_2": 0.5833333134651184,
+  "beta_3": 0.7916666865348816,
+  "beta_4": 0.9791666865348816,
+  "model_type": "simple_transformer",
+  "dataset": "small",
+  "epochs": 30,
+  "batch_size": 4,
+  "feature_size": 125,
+  "factor_size": 7
+}

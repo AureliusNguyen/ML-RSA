@@ -1,0 +1,22 @@
+{
+  "dataset_name": "tiny",
+  "description": "N < 1,000 (Testing scale)",
+  "num_samples": 50,
+  "max_value": 989,
+  "max_semiprime_bits": 10,
+  "max_factor_bits": 5,
+  "train_samples": 40,
+  "test_samples": 10,
+  "format": "clean_no_leakage",
+  "columns": [
+    "N",
+    "p"
+  ],
+  "generation_config": {
+    "name": "tiny",
+    "num_samples": 200,
+    "description": "N < 1,000 (Testing scale)",
+    "max_value": 1000
+  },
+  "data_leakage_verified": "NONE"
+}
