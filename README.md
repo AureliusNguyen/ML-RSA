@@ -101,27 +101,22 @@ Current performance on small dataset (N < 10,000):
 
 ## 🧮 Mathematical Foundation
 
-### ECPP Features
-- Elliptic curve discriminants and j-invariants
-- Complex multiplication properties  
-- Hasse bound estimates for point counts
-- Primality signatures based on curve arithmetic
-
-### GNFS Features
-- Murphy E-score estimates for polynomial quality
-- Smoothness indicators across different bounds
-- Factor base optimization heuristics
-- Number field property approximations
+### Enhanced Features (125-dimensional)
+- Number-theoretic properties and patterns
+- Basic smoothness and divisibility indicators  
+- Mathematical constraints and heuristics
+- Enhanced binary representations with contextual information
 
 ### Constraints Enforced
 - Odd number constraints (last bit = 1)
-- Factorization validity checks
-- Mathematical consistency across prediction heads
+- Basic factorization consistency checks
+- Dual prediction head coordination (p and q models)
+- Mathematical validity enforcement during training
 
 ## 📈 Training Process
 
 1. **Data Generation**: Create semiprimes from random prime pairs
-2. **Feature Extraction**: Apply ECPP + GNFS + binary encoding
+2. **Feature Extraction**: Apply enhanced feature engineering + binary encoding
 3. **Model Training**: Train with mathematical constraints and regularization
 4. **Evaluation**: β-metrics (exact match and near-miss accuracies)
 5. **Comparison**: Comprehensive analysis across all architectures
