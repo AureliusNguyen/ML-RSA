@@ -1,4 +1,4 @@
-# RSA ML Attack: Advanced Machine Learning Approaches to RSA Cryptanalysis
+# ML-based Attack on Digitally Authenticated RSA Algorithm using Model Estimation
 
 This project implements new machine learning models for RSA semiprime factorization research, building on prior work by Murat et al. and Nene & Uludag with novel architectural innovations.
 
