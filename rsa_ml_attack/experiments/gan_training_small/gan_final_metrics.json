@@ -1,5 +1,10 @@
 {
-  "factorization_accuracy": 0.10416666666666667,
+  "factorization_accuracy": 0.0625,
+  "beta_0": 0.0625,
+  "beta_1": 0.2916666567325592,
+  "beta_2": 0.6666666865348816,
+  "beta_3": 0.7916666865348816,
+  "beta_4": 0.9583333134651184,
   "dataset": "small",
   "epochs": 30,
   "batch_size": 4,

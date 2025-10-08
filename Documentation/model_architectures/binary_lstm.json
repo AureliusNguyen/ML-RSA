@@ -1,0 +1,43 @@
+{
+    "model": "Binary_LSTM", 
+    "total_params": 2129510,
+    "layers": [
+      {"idx": 1, "type": "LSTM", "units": 128, "return_sequences": true,  "output_shape": [null, 1, 128], "params": 76288},
+      {"idx": 2, "type": "BatchNormalization", "features": 128,            "output_shape": [null, 1, 128], "params": 512},
+      {"idx": 3, "type": "Dropout", "output_shape": [null, 1, 128],        "params": 0},
+  
+      {"idx": 4, "type": "LSTM", "units": 256, "return_sequences": true,   "output_shape": [null, 1, 256], "params": 394240},
+      {"idx": 5, "type": "BatchNormalization", "features": 256,            "output_shape": [null, 1, 256], "params": 1024},
+      {"idx": 6, "type": "Dropout", "output_shape": [null, 1, 256],        "params": 0},
+  
+      {"idx": 7, "type": "LSTM", "units": 512, "return_sequences": false,  "output_shape": [null, 512],    "params": 1574912},
+      {"idx": 8, "type": "BatchNormalization", "features": 512,            "output_shape": [null, 512],    "params": 2048},
+      {"idx": 9, "type": "Dropout", "output_shape": [null, 512],           "params": 0},
+  
+      {"idx": 10, "type": "Dense", "units": 128,                           "output_shape": [null, 128],    "params": 65664},
+      {"idx": 11, "type": "BatchNormalization", "features": 128,           "output_shape": [null, 128],    "params": 512},
+      {"idx": 12, "type": "Dropout", "output_shape": [null, 128],          "params": 0},
+  
+      {"idx": 13, "type": "Dense", "units": 100,                           "output_shape": [null, 100],    "params": 12900},
+      {"idx": 14, "type": "BatchNormalization", "features": 100,           "output_shape": [null, 100],    "params": 400},
+      {"idx": 15, "type": "Dropout", "output_shape": [null, 100],          "params": 0},
+  
+      {"idx": 16, "type": "Dense", "units": 10,                            "output_shape": [null, 10],     "params": 1010}
+    ],
+    "loss": {
+        "name": "binary_cross_entropy",
+        "per_example": "-(y * log(p) + (1 - y) * log(1 - p))",
+        "aggregate": "mean",
+        "inputs": {
+          "y": "0 or 1",
+          "p": "predicted prob in (0,1)"
+        },
+        "notes": [
+          "Use epsilon to avoid log(0): p = clip(p, eps, 1-eps)"
+        ],
+        "function": "nn.BCELoss()",
+        "implementation": "function BCE(y[1..N], p[1..N], eps=1e-7):\n    loss = 0\n    for i in 1..N:\n        pi = min(max(p[i], eps), 1 - eps)\n        loss += -( y[i]*log(pi) + (1 - y[i])*log(1 - pi) )\n    return loss / N"      
+      }
+      
+  }
+  

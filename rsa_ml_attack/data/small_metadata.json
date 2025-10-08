@@ -1,22 +1,26 @@
 {
-  "dataset_name": "small",
-  "description": "N < 10,000 (Murat scale)",
-  "num_samples": 237,
-  "max_value": 9991,
-  "max_semiprime_bits": 14,
-  "max_factor_bits": 7,
-  "train_samples": 189,
-  "test_samples": 48,
-  "format": "clean_no_leakage",
+  "methodology": "exhaustive_enumeration_murat_et_al",
+  "description": "ALL semiprimes from 0 to 10,000 (complete enumeration)",
+  "scale_name": "small",
+  "upperbound": 10000,
+  "total_numbers_checked": 10001,
+  "total_semiprimes_found": 2625,
+  "semiprime_density_percent": 26.247375262473753,
+  "max_N_bits": 14,
+  "max_p_bits": 7,
+  "train_samples": 2100,
+  "test_samples": 525,
+  "largest_semiprime": 9998,
+  "largest_factor": 97,
   "columns": [
     "N",
-    "p"
+    "p",
+    "q",
+    "N_binary",
+    "p_binary",
+    "N_bits",
+    "p_bits"
   ],
-  "generation_config": {
-    "name": "small",
-    "num_samples": 2000,
-    "description": "N < 10,000 (Murat scale)",
-    "max_value": 10000
-  },
-  "data_leakage_verified": "NONE"
+  "random_seed": 42,
+  "train_test_split": "80/20"
 }

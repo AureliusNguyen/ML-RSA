@@ -1,353 +1,309 @@
 """
-Data generation script for RSA semiprime factorization training.
-Generates semiprimes N and their smallest prime factors p following Murat et al. methodology.
-
-Data Format (based on papers):
-- Input: Semiprime N converted to binary representation
-- Output: Smallest prime factor p converted to binary representation
+Exhaustive Semiprime Data Generation - Following Murat et al. Exactly
+This implements the exact methodology from Murat et al. paper:
+1. Set upperbound
+2. Check ALL numbers from 0 to upperbound for semiprime property
+3. Convert all semiprimes to binary format
+4. Save as CSV for train/test split during training
 """
 
 import numpy as np
 import pandas as pd
-from sympy import isprime, factorint
-import random
+from sympy import factorint, isprime
 import os
 import json
 from tqdm import tqdm
 import argparse
 from typing import List, Tuple
-import pickle
-from src.crypto_utils import PrimeGenerator, FeatureEngineer
 
 
-def generate_semiprime_data(num_samples: int, max_value: int) -> Tuple[List[int], List[int]]:
+def is_semiprime(n: int) -> Tuple[bool, int]:
     """
-    Generate semiprimes and their smallest prime factors.
-    
+    Check if number is a semiprime (product of exactly two primes).
+
     Args:
-        num_samples: Number of semiprimes to generate
-        max_value: Maximum value for the semiprimes (e.g., 1,000,000,000)
-    
+        n: Number to check
+
+    Returns:
+        Tuple of (is_semiprime, smallest_prime_factor)
+    """
+    if n < 4:  # Smallest semiprime is 4 = 2*2
+        return False, 0
+
+    # Factor the number
+    factors = factorint(n)
+
+    # Check if it's a semiprime (exactly 2 prime factors counting multiplicity)
+    total_factors = sum(factors.values())
+
+    if total_factors == 2:
+        # Get the smallest prime factor
+        smallest_prime = min(factors.keys())
+        return True, smallest_prime
+
+    return False, 0
+
+
+def generate_exhaustive_semiprimes(upperbound: int) -> Tuple[List[int], List[int]]:
+    """
+    Generate ALL semiprimes from 0 to upperbound (Murat et al. methodology).
+
+    Args:
+        upperbound: Maximum value to check
+
     Returns:
         Tuple of (semiprimes, smallest_factors)
     """
-    print(f"Generating {num_samples} semiprimes with N < {max_value:,}...")
-    
-    # Calculate max_bits from max_value
-    max_bits = max_value.bit_length()
-    prime_gen = PrimeGenerator(max_bits)
+    print(f"Checking ALL numbers from 0 to {upperbound:,} for semiprime property...")
+    print("This is the EXACT methodology from Murat et al. paper")
+
     semiprimes = []
     smallest_factors = []
-    
-    # Generate prime pairs and create semiprimes
-    pairs_needed = num_samples * 3  # Generate extra to filter for max_value
-    pairs = prime_gen.generate_prime_pairs(10, max_bits, pairs_needed)
-    
-    for p, q in tqdm(pairs, desc="Creating semiprimes"):
-        if len(semiprimes) >= num_samples:
-            break
-            
-        if p > q:
-            p, q = q, p  # Ensure p <= q
-        
-        N = p * q
-        
-        # Verify N is within our target range
-        if N < max_value:
-            semiprimes.append(N)
-            smallest_factors.append(p)  # p is the smallest factor
-    
+
+    # Check every single number from 0 to upperbound
+    for n in tqdm(range(upperbound + 1), desc="Checking numbers"):
+        is_semi, smallest_factor = is_semiprime(n)
+        if is_semi:
+            semiprimes.append(n)
+            smallest_factors.append(smallest_factor)
+
+    print(f"Found {len(semiprimes):,} semiprimes out of {upperbound+1:,} numbers checked")
+    print(f"Semiprime density: {len(semiprimes)/(upperbound+1)*100:.2f}%")
+
     return semiprimes, smallest_factors
 
 
-def create_simple_table_dataset(semiprimes: List[int], factors: List[int]) -> pd.DataFrame:
+def convert_to_binary_dataset(semiprimes: List[int], factors: List[int], upperbound: int) -> pd.DataFrame:
     """
-    Create simple table dataset with N and p columns as per research papers.
-    
+    Convert semiprimes and factors to binary format and create dataset.
+
     Args:
-        semiprimes: List of semiprime numbers N
-        factors: List of smallest prime factors p
-    
+        semiprimes: List of semiprime numbers
+        factors: List of corresponding smallest prime factors
+        upperbound: Original upperbound (for determining bit lengths)
+
     Returns:
-        DataFrame with 'N' and 'p' columns
+        DataFrame with binary representations
     """
-    print("Creating simple table dataset with N and p columns...")
-    
-    df = pd.DataFrame({
-        'N': semiprimes,
-        'p': factors
-    })
-    
+    print("Converting to binary format as per Murat et al...")
+
+    # Determine bit lengths based on upperbound (not max values)
+    max_N_bits = upperbound.bit_length()
+    max_p = max(factors)
+    max_p_bits = max_p.bit_length()
+
+    print(f"Using {max_N_bits} bits for N (upperbound: {upperbound:,})")
+    print(f"Using {max_p_bits} bits for p (max factor: {max_p:,})")
+
+    data = []
+
+    for N, p in tqdm(zip(semiprimes, factors), desc="Converting to binary", total=len(semiprimes)):
+        # Convert N to binary string
+        N_binary = format(N, f'0{max_N_bits}b')
+
+        # Convert p to binary string
+        p_binary = format(p, f'0{max_p_bits}b')
+
+        data.append({
+            'N': N,
+            'p': p,
+            'q': N // p,  # Calculate q for completeness
+            'N_binary': N_binary,
+            'p_binary': p_binary,
+            'N_bits': max_N_bits,
+            'p_bits': max_p_bits
+        })
+
+    df = pd.DataFrame(data)
+
+    print(f"Created dataset with {len(df):,} semiprime samples")
+    print(f"Sample data:")
+    print(df[['N', 'p', 'q', 'N_binary', 'p_binary']].head())
+
     return df
 
 
-def generate_enhanced_features_dataset(semiprimes: List[int], factors: List[int]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Generate enhanced features using ECPP and GNFS methods.
-    
-    Returns:
-        Tuple of (X_enhanced, y_binary) 
-    """
-    print("Generating enhanced mathematical features...")
-    
-    feature_engineer = FeatureEngineer()
-    X_enhanced = []
-    y_binary = []
-    
-    # Calculate max factor bits
-    max_factor = max(factors)
-    max_factor_bits = max_factor.bit_length()
-    
-    for N, p in tqdm(zip(semiprimes, factors), desc="Extracting features", total=len(semiprimes)):
-        # Extract comprehensive features for semiprime
-        features = feature_engineer.extract_all_features(N)
-        X_enhanced.append(features)
-        
-        # Convert smallest factor to binary (same as basic approach)
-        p_binary = format(p, f'0{max_factor_bits}b')
-        y_binary.append([int(bit) for bit in p_binary])
-    
-    return np.array(X_enhanced), np.array(y_binary, dtype=np.int8)
+def save_exhaustive_dataset(df: pd.DataFrame, scale_name: str, upperbound: int):
+    """Save the exhaustive dataset with metadata."""
 
+    # Create data directory
+    os.makedirs('data', exist_ok=True)
 
-def save_dataset(data_dict: dict, save_path: str, metadata: dict):
-    """Save dataset with metadata."""
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    
-    # Save main data
-    np.savez_compressed(save_path, **data_dict)
-    
-    # Save metadata
-    metadata_path = save_path.replace('.npz', '_metadata.json')
+    # Save complete dataset
+    dataset_path = f"data/{scale_name}_complete.csv"
+    df.to_csv(dataset_path, index=False)
+
+    # Create train/test split (80/20)
+    df_shuffled = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    train_size = int(len(df) * 0.8)
+
+    df_train = df_shuffled[:train_size]
+    df_test = df_shuffled[train_size:]
+
+    # Save train/test splits
+    train_path = f"data/{scale_name}_train.csv"
+    test_path = f"data/{scale_name}_test.csv"
+
+    df_train.to_csv(train_path, index=False)
+    df_test.to_csv(test_path, index=False)
+
+    # Create metadata
+    metadata = {
+        "methodology": "exhaustive_enumeration_murat_et_al",
+        "description": f"ALL semiprimes from 0 to {upperbound:,} (complete enumeration)",
+        "scale_name": scale_name,
+        "upperbound": upperbound,
+        "total_numbers_checked": upperbound + 1,
+        "total_semiprimes_found": len(df),
+        "semiprime_density_percent": len(df) / (upperbound + 1) * 100,
+        "max_N_bits": int(df['N_bits'].iloc[0]),
+        "max_p_bits": int(df['p_bits'].iloc[0]),
+        "train_samples": len(df_train),
+        "test_samples": len(df_test),
+        "largest_semiprime": int(df['N'].max()),
+        "largest_factor": int(df['p'].max()),
+        "columns": ["N", "p", "q", "N_binary", "p_binary", "N_bits", "p_bits"],
+        "random_seed": 42,
+        "train_test_split": "80/20"
+    }
+
+    metadata_path = f"data/{scale_name}_metadata.json"
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=2)
-    
-    print(f"Dataset saved to: {save_path}")
-    print(f"Metadata saved to: {metadata_path}")
+
+    print(f"\nDataset saved:")
+    print(f"  Complete: {dataset_path}")
+    print(f"  Training: {train_path} ({len(df_train):,} samples)")
+    print(f"  Testing: {test_path} ({len(df_test):,} samples)")
+    print(f"  Metadata: {metadata_path}")
+
+    return train_path, test_path, metadata_path
 
 
-def create_train_test_split(X: np.ndarray, y: np.ndarray, test_size: float = 0.2) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Create train/test split."""
-    num_samples = X.shape[0]
-    indices = np.random.permutation(num_samples)
-    
-    split_idx = int(num_samples * (1 - test_size))
-    train_indices = indices[:split_idx]
-    test_indices = indices[split_idx:]
-    
-    X_train = X[train_indices]
-    X_test = X[test_indices]
-    y_train = y[train_indices]
-    y_test = y[test_indices]
-    
-    return X_train, X_test, y_train, y_test
+def verify_exhaustive_dataset(dataset_path: str):
+    """Verify the exhaustive dataset integrity."""
+    print(f"\nVerifying exhaustive dataset: {dataset_path}")
 
-
-def generate_multiple_datasets(base_config: dict):
-    """Generate datasets for different scales as in the papers."""
-    
-    # Match both papers' scales: Murat (1K, 10K, 100K, 1M) + Nene extension (100M)
-    # Adjusted sample sizes to be realistic for small ranges
-    scales = [
-        {"name": "tiny", "num_samples": 200, "max_bits": 10, "description": "N < 1,000 (Murat baseline)", "max_value": 1000},
-        {"name": "small", "num_samples": 2000, "max_bits": 14, "description": "N < 10,000 (Murat scale)", "max_value": 10000},
-        {"name": "medium", "num_samples": 20000, "max_bits": 17, "description": "N < 100,000 (Murat scale)", "max_value": 100000}, 
-        {"name": "large", "num_samples": 200000, "max_bits": 20, "description": "N < 1,000,000 (Murat scale)", "max_value": 1000000},
-        {"name": "xlarge", "num_samples": 1000000, "max_bits": 27, "description": "N < 100,000,000 (Nene extension)", "max_value": 100000000}
-    ]
-    
-    for scale in scales:
-        print(f"\n{'='*60}")
-        print(f"GENERATING {scale['name'].upper()} DATASET: {scale['description']}")
-        print(f"{'='*60}")
-        
-        # Generate raw data
-        semiprimes, factors = generate_semiprime_data(scale["num_samples"], scale["max_value"])
-        
-        print(f"Generated {len(semiprimes)} valid semiprimes")
-        print(f"Largest semiprime: {max(semiprimes):,} ({max(semiprimes).bit_length()} bits)")
-        print(f"Largest factor: {max(factors):,} ({max(factors).bit_length()} bits)")
-        
-        # Create simple table dataset (following papers' methodology)
-        df = create_simple_table_dataset(semiprimes, factors)
-        
-        # Create train/test splits
-        train_size = int(len(df) * (1 - base_config.get("test_split", 0.2)))
-        df_shuffled = df.sample(frac=1, random_state=42).reset_index(drop=True)
-        df_train = df_shuffled[:train_size]
-        df_test = df_shuffled[train_size:]
-        
-        # Prepare metadata
-        metadata = {
-            "dataset_name": scale["name"],
-            "description": scale["description"],
-            "num_samples": len(semiprimes),
-            "max_value": scale["max_value"],
-            "max_semiprime_bits": max(semiprimes).bit_length(),
-            "max_factor_bits": max(factors).bit_length(),
-            "train_samples": len(df_train),
-            "test_samples": len(df_test),
-            "format": "simple_table",
-            "columns": ["N", "p"],
-            "generation_config": scale
-        }
-        
-        # Save table datasets as CSV (following paper format)
-        train_path = f"data/{scale['name']}_train.csv"
-        test_path = f"data/{scale['name']}_test.csv"
-        
-        df_train.to_csv(train_path, index=False)
-        df_test.to_csv(test_path, index=False)
-        
-        # Also save metadata
-        metadata_path = f"data/{scale['name']}_metadata.json"
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
-        
-        print(f"Dataset saved:")
-        print(f"  Training: {train_path}")
-        print(f"  Testing: {test_path}")
-        print(f"  Metadata: {metadata_path}")
-        
-        # Print dataset summary
-        print(f"\nDataset Summary:")
-        print(f"  Total samples: {len(df)}")
-        print(f"  Training samples: {len(df_train)}")
-        print(f"  Testing samples: {len(df_test)}")
-        print(f"  Max semiprime: {max(semiprimes):,}")
-        print(f"  Max factor: {max(factors):,}")
-        print(f"  Sample data:")
-        print(df.head())
-
-
-def verify_dataset(dataset_path: str):
-    """Verify dataset integrity for table format."""
-    print(f"\nVerifying dataset: {dataset_path}")
-    
-    # Load CSV data
     df = pd.read_csv(dataset_path)
-    metadata_path = dataset_path.replace('_train.csv', '_metadata.json').replace('_test.csv', '_metadata.json')
-    
-    with open(metadata_path, 'r') as f:
-        metadata = json.load(f)
-    
+
     # Basic checks
-    assert 'N' in df.columns and 'p' in df.columns, "Dataset must have N and p columns"
-    assert len(df) > 0, "Dataset is empty"
-    
-    # Verify some semiprimes actually factor correctly
-    verified_count = 0
-    for i in range(min(10, len(df))):  # Check first 10
+    assert 'N' in df.columns and 'p' in df.columns, "Must have N and p columns"
+    assert len(df) > 0, "Dataset cannot be empty"
+
+    # Verify factorization for first 10 samples
+    verified = 0
+    for i in range(min(10, len(df))):
         N = int(df.iloc[i]['N'])
         p = int(df.iloc[i]['p'])
-        
-        if N % p == 0:  # p divides N
-            q = N // p
-            if isprime(p) and isprime(q) and N == p * q:
-                verified_count += 1
-    
-    print(f"[OK] Verified {verified_count}/10 semiprimes factor correctly")
+        q = N // p
+
+        if N == p * q and isprime(p) and isprime(q):
+            verified += 1
+
+    print(f"[OK] Verified {verified}/10 semiprimes factor correctly")
     print(f"[OK] Dataset shape: {df.shape}")
-    print(f"[OK] Sample data:")
-    print(df.head(3))
-    print(f"[OK] Max values: N={df['N'].max():,}, p={df['p'].max():,}")
-    print(f"[OK] Metadata: {metadata['num_samples']} samples, max_value={metadata.get('max_value', 'N/A'):,}")
+    print(f"[OK] Max N: {df['N'].max():,}, Max p: {df['p'].max():,}")
+    print(f"[OK] Binary format available: {df.columns.tolist()}")
+
+
+def generate_murat_scales():
+    """Generate datasets using Murat et al. exact methodology with realistic upperbounds."""
+
+    # Murat et al. scales - exhaustive enumeration means much smaller upperbounds
+    # These give dense, complete training data
+    scales = [
+        {
+            "name": "tiny",
+            "upperbound": 1000,
+            "description": "ALL semiprimes from 0 to 1,000 (complete enumeration)"
+        },
+        {
+            "name": "small",
+            "upperbound": 10000,
+            "description": "ALL semiprimes from 0 to 10,000 (complete enumeration)"
+        },
+        {
+            "name": "medium",
+            "upperbound": 100000,
+            "description": "ALL semiprimes from 0 to 100,000 (complete enumeration)"
+        },
+        {
+            "name": "large",
+            "upperbound": 1000000,
+            "description": "ALL semiprimes from 0 to 1,000,000 (complete enumeration)"
+        }
+    ]
+
+    for scale in scales:
+        print(f"\n{'='*80}")
+        print(f"GENERATING {scale['name'].upper()} DATASET")
+        print(f"Methodology: {scale['description']}")
+        print(f"{'='*80}")
+
+        # Step 1: Exhaustive enumeration (Murat et al. methodology)
+        semiprimes, factors = generate_exhaustive_semiprimes(scale["upperbound"])
+
+        # Step 2: Convert to binary format
+        df = convert_to_binary_dataset(semiprimes, factors, scale["upperbound"])
+
+        # Step 3: Save with train/test split
+        train_path, test_path, metadata_path = save_exhaustive_dataset(
+            df, scale["name"], scale["upperbound"]
+        )
+
+        print(f"\n{scale['name'].upper()} DATASET COMPLETE:")
+        print(f"  Found {len(df):,} semiprimes from {scale['upperbound']+1:,} numbers")
+        print(f"  Density: {len(df)/(scale['upperbound']+1)*100:.2f}%")
+        print(f"  Training samples: {int(len(df)*0.8):,}")
+        print(f"  Test samples: {len(df) - int(len(df)*0.8):,}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate RSA factorization training datasets')
-    parser.add_argument('--dataset', choices=['small', 'medium', 'large', 'xlarge', 'all'], 
-                       default='all', help='Dataset scale to generate')
-    parser.add_argument('--data-dir', default='data', help='Directory to save datasets')
+    parser = argparse.ArgumentParser(description='Generate exhaustive semiprime datasets (Murat et al. methodology)')
+    parser.add_argument('--scale', choices=['tiny', 'small', 'medium', 'large', 'all'],
+                       default='small', help='Dataset scale to generate')
+    parser.add_argument('--upperbound', type=int, help='Custom upperbound for exhaustive enumeration')
     parser.add_argument('--verify', action='store_true', help='Verify generated datasets')
-    
+
     args = parser.parse_args()
-    
-    # Set random seed for reproducibility
-    np.random.seed(42)
-    random.seed(42)
-    
-    # Create data directory
-    os.makedirs(args.data_dir, exist_ok=True)
-    
-    # Configuration
-    base_config = {
-        "random_seed": 42,
-        "test_split": 0.2,
-        "data_format": "following_murat_et_al_methodology"
-    }
-    
-    if args.dataset == 'all':
-        generate_multiple_datasets(base_config)
+
+    if args.upperbound:
+        # Custom upperbound
+        print(f"Generating custom dataset with upperbound {args.upperbound:,}")
+        semiprimes, factors = generate_exhaustive_semiprimes(args.upperbound)
+        df = convert_to_binary_dataset(semiprimes, factors, args.upperbound)
+        save_exhaustive_dataset(df, "custom", args.upperbound)
+
+    elif args.scale == 'all':
+        # Generate all standard scales
+        generate_murat_scales()
+
     else:
-        # Generate single dataset
+        # Generate single scale
         scale_configs = {
-            "tiny": {"num_samples": 200, "max_value": 1000},
-            "small": {"num_samples": 2000, "max_value": 10000},
-            "medium": {"num_samples": 20000, "max_value": 100000},
-            "large": {"num_samples": 200000, "max_value": 1000000},
-            "xlarge": {"num_samples": 1000000, "max_value": 100000000}
+            "tiny": 1000,
+            "small": 10000,
+            "medium": 100000,
+            "large": 1000000
         }
-        
-        config = scale_configs[args.dataset]
-        print(f"Generating {args.dataset} dataset...")
-        
-        # Generate the dataset using the same logic as generate_multiple_datasets
-        semiprimes, factors = generate_semiprime_data(config["num_samples"], config["max_value"])
-        
-        print(f"Generated {len(semiprimes)} valid semiprimes")
-        print(f"Largest semiprime: {max(semiprimes):,} ({max(semiprimes).bit_length()} bits)")
-        print(f"Largest factor: {max(factors):,} ({max(factors).bit_length()} bits)")
-        
-        # Create simple table dataset
-        df = create_simple_table_dataset(semiprimes, factors)
-        
-        # Create train/test splits
-        train_size = int(len(df) * (1 - base_config.get("test_split", 0.2)))
-        df_shuffled = df.sample(frac=1, random_state=42).reset_index(drop=True)
-        df_train = df_shuffled[:train_size]
-        df_test = df_shuffled[train_size:]
-        
-        # Save datasets
-        train_path = f"data/{args.dataset}_train.csv"
-        test_path = f"data/{args.dataset}_test.csv"
-        metadata_path = f"data/{args.dataset}_metadata.json"
-        
-        df_train.to_csv(train_path, index=False)
-        df_test.to_csv(test_path, index=False)
-        
-        # Save metadata
-        metadata = {
-            "dataset_name": args.dataset,
-            "description": f"Single dataset for {args.dataset}",
-            "num_samples": len(semiprimes),
-            "max_value": config["max_value"],
-            "max_semiprime_bits": max(semiprimes).bit_length(),
-            "max_factor_bits": max(factors).bit_length(),
-            "train_samples": len(df_train),
-            "test_samples": len(df_test),
-            "format": "simple_table",
-            "columns": ["N", "p"],
-            "generation_config": config
-        }
-        
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
-        
-        print(f"Dataset saved:")
-        print(f"  Training: {train_path}")
-        print(f"  Testing: {test_path}")
-        print(f"  Metadata: {metadata_path}")
-    
+
+        upperbound = scale_configs[args.scale]
+        print(f"Generating {args.scale} dataset with upperbound {upperbound:,}")
+
+        semiprimes, factors = generate_exhaustive_semiprimes(upperbound)
+        df = convert_to_binary_dataset(semiprimes, factors, upperbound)
+        save_exhaustive_dataset(df, args.scale, upperbound)
+
     # Verify datasets if requested
     if args.verify:
-        print("\n" + "="*60)
+        print(f"\n{'='*60}")
         print("VERIFYING GENERATED DATASETS")
-        print("="*60)
-        
-        for dataset_file in os.listdir(args.data_dir):
-            if dataset_file.endswith('.csv') and ('_train.csv' in dataset_file or '_test.csv' in dataset_file):
-                verify_dataset(os.path.join(args.data_dir, dataset_file))
+        print(f"{'='*60}")
+
+        if os.path.exists('data'):
+            for filename in os.listdir('data'):
+                if filename.endswith('_train.csv'):
+                    verify_exhaustive_dataset(os.path.join('data', filename))
 
 
 if __name__ == "__main__":

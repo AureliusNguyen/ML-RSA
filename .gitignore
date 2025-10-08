@@ -223,3 +223,6 @@ temp_results/
 .env.development.local
 .env.test.local
 .env.production.local
+
+key
+key.pub

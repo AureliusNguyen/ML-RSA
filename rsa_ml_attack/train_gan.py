@@ -20,6 +20,21 @@ from models.factorization_gan import FactorizationGAN, create_gan_dataloader
 from crypto_utils import FeatureEngineer
 
 
+def calculate_beta_metrics(predictions, targets):
+    """Calculate beta_i metrics from papers (percentage with at most i bit errors)."""
+    # Convert to binary predictions
+    binary_preds = (predictions > 0.5).float()
+    
+    # Count bit errors for each sample
+    errors = (binary_preds != targets).sum(dim=1)
+    
+    beta_metrics = {}
+    for i in range(5):
+        beta_metrics[f'beta_{i}'] = (errors <= i).float().mean().item()
+    
+    return beta_metrics
+
+
 class GANSemiprimeDataset(Dataset):
     """Dataset for GAN training with enhanced features."""
     
@@ -53,6 +68,56 @@ class GANSemiprimeDataset(Dataset):
     
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
+
+
+def evaluate_gan_with_beta_metrics(gan, test_loader, device):
+    """Comprehensive evaluation with beta-metrics like other models."""
+    gan.generator.eval()
+    
+    all_predictions = []
+    all_targets = []
+    
+    print("\nEvaluating GAN with beta-metrics...")
+    
+    with torch.no_grad():
+        for batch_features, batch_targets in test_loader:
+            batch_features = batch_features.to(device)
+            batch_targets = batch_targets.to(device)
+            
+            # Generate factors (take best of 3 generations per sample)
+            generated_factors = gan.generate_factors(batch_features, num_samples=3)
+            
+            # For each sample, select the best generation (closest to target)
+            best_predictions = []
+            for i in range(batch_features.size(0)):
+                target = batch_targets[i]
+                candidates = generated_factors[i]  # Shape: (3, factor_size)
+                
+                # Calculate errors for each candidate
+                errors = []
+                for candidate in candidates:
+                    binary_candidate = (candidate > 0.5).float()
+                    error_count = (binary_candidate != target).sum().item()
+                    errors.append(error_count)
+                
+                # Select candidate with minimum errors
+                best_idx = errors.index(min(errors))
+                best_predictions.append(generated_factors[i, best_idx])
+            
+            # Stack best predictions
+            batch_predictions = torch.stack(best_predictions)
+            
+            all_predictions.append(batch_predictions)
+            all_targets.append(batch_targets)
+    
+    # Concatenate all batches
+    final_predictions = torch.cat(all_predictions, dim=0)
+    final_targets = torch.cat(all_targets, dim=0)
+    
+    # Calculate β-metrics
+    beta_metrics = calculate_beta_metrics(final_predictions, final_targets)
+    
+    return beta_metrics, final_predictions, final_targets
 
 
 def train_gan_model(train_loader, test_loader, device, epochs=200):
@@ -89,20 +154,48 @@ def train_gan_model(train_loader, test_loader, device, epochs=200):
         
         # Evaluate every 20 epochs
         if (epoch + 1) % 20 == 0 or epoch == epochs - 1:
+            # Quick factorization accuracy (beta_0)
             accuracy = gan.evaluate_factorization_accuracy(test_loader)
-            print(f"         Factorization Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
+            print(f"         Factorization Accuracy (beta_0): {accuracy:.4f} ({accuracy*100:.2f}%)")
             
-            training_history.append({
-                'epoch': epoch + 1,
-                'g_loss': avg_g_loss,
-                'd_loss': avg_d_loss,
-                'factorization_accuracy': accuracy
-            })
+            # Detailed beta-metrics evaluation (every 20 epochs)
+            if (epoch + 1) % 20 == 0 or epoch == epochs - 1:
+                beta_metrics, _, _ = evaluate_gan_with_beta_metrics(gan, test_loader, device)
+                print(f"         beta_1={beta_metrics['beta_1']:.4f}, beta_2={beta_metrics['beta_2']:.4f}, beta_3={beta_metrics['beta_3']:.4f}")
+                
+                training_history.append({
+                    'epoch': epoch + 1,
+                    'g_loss': avg_g_loss,
+                    'd_loss': avg_d_loss,
+                    'factorization_accuracy': accuracy,
+                    'beta_0': beta_metrics['beta_0'],
+                    'beta_1': beta_metrics['beta_1'],
+                    'beta_2': beta_metrics['beta_2'],
+                    'beta_3': beta_metrics['beta_3'],
+                    'beta_4': beta_metrics['beta_4']
+                })
+            else:
+                training_history.append({
+                    'epoch': epoch + 1,
+                    'g_loss': avg_g_loss,
+                    'd_loss': avg_d_loss,
+                    'factorization_accuracy': accuracy
+                })
     
-    # Final evaluation with sample generation
+    # Final evaluation with comprehensive beta-metrics
     print(f"\n{'='*60}")
     print(f"FINAL GAN EVALUATION")
     print(f"{'='*60}")
+    
+    # Complete beta-metrics evaluation
+    final_beta_metrics, predictions, targets = evaluate_gan_with_beta_metrics(gan, test_loader, device)
+    
+    print(f"Final beta-metrics:")
+    print(f"  beta_0 (exact match): {final_beta_metrics['beta_0']:.4f} ({final_beta_metrics['beta_0']*100:.2f}%)")
+    print(f"  beta_1 (<=1 bit error): {final_beta_metrics['beta_1']:.4f} ({final_beta_metrics['beta_1']*100:.2f}%)")
+    print(f"  beta_2 (<=2 bit error): {final_beta_metrics['beta_2']:.4f} ({final_beta_metrics['beta_2']*100:.2f}%)")
+    print(f"  beta_3 (<=3 bit error): {final_beta_metrics['beta_3']:.4f} ({final_beta_metrics['beta_3']*100:.2f}%)")
+    print(f"  beta_4 (<=4 bit error): {final_beta_metrics['beta_4']:.4f} ({final_beta_metrics['beta_4']*100:.2f}%)")
     
     gan.generator.eval()
     with torch.no_grad():
@@ -115,7 +208,7 @@ def train_gan_model(train_loader, test_loader, device, epochs=200):
         num_samples = min(5, len(sample_features))
         generated_factors = gan.generate_factors(sample_features[:num_samples], num_samples=3)
         
-        print(f"Sample factor generation (first {num_samples} test samples):")
+        print(f"\nSample factor generation (first {num_samples} test samples):")
         for i in range(num_samples):
             print(f"  Sample {i+1}:")
             print(f"    True factor:  {sample_targets[i]}")
@@ -123,10 +216,10 @@ def train_gan_model(train_loader, test_loader, device, epochs=200):
             print(f"    Generated 2:  {generated_factors[i, 1]}")
             print(f"    Generated 3:  {generated_factors[i, 2]}")
     
-    final_accuracy = gan.evaluate_factorization_accuracy(test_loader)
-    print(f"\nFinal Factorization Accuracy: {final_accuracy:.4f} ({final_accuracy*100:.2f}%)")
+    final_accuracy = final_beta_metrics['beta_0']
+    print(f"\nFinal Factorization Accuracy (beta_0): {final_accuracy:.4f} ({final_accuracy*100:.2f}%)")
     
-    return gan, training_history, final_accuracy
+    return gan, training_history, final_accuracy, final_beta_metrics
 
 
 def main():
@@ -182,7 +275,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
     
     # Train GAN
-    gan, history, final_accuracy = train_gan_model(
+    gan, history, final_accuracy, final_beta_metrics = train_gan_model(
         train_loader, test_loader, device, epochs=args.epochs
     )
     
@@ -198,9 +291,14 @@ def main():
     history_df = pd.DataFrame(history)
     history_df.to_csv(f"{results_dir}/gan_training_history.csv", index=False)
     
-    # Save final metrics
+    # Save final metrics with all beta-metrics
     final_metrics = {
         'factorization_accuracy': final_accuracy,
+        'beta_0': final_beta_metrics['beta_0'],
+        'beta_1': final_beta_metrics['beta_1'],
+        'beta_2': final_beta_metrics['beta_2'],
+        'beta_3': final_beta_metrics['beta_3'],
+        'beta_4': final_beta_metrics['beta_4'],
         'dataset': args.dataset,
         'epochs': args.epochs,
         'batch_size': args.batch_size,

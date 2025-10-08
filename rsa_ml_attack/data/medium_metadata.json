@@ -1,22 +1,26 @@
 {
-  "dataset_name": "medium",
-  "description": "N < 100,000 (Murat scale)",
-  "num_samples": 3520,
-  "max_value": 99973,
-  "max_semiprime_bits": 17,
-  "max_factor_bits": 9,
-  "train_samples": 2816,
-  "test_samples": 704,
-  "format": "clean_no_leakage",
+  "methodology": "exhaustive_enumeration_murat_et_al",
+  "description": "ALL semiprimes from 0 to 100,000 (complete enumeration)",
+  "scale_name": "medium",
+  "upperbound": 100000,
+  "total_numbers_checked": 100001,
+  "total_semiprimes_found": 23378,
+  "semiprime_density_percent": 23.377766222337776,
+  "max_N_bits": 17,
+  "max_p_bits": 9,
+  "train_samples": 18702,
+  "test_samples": 4676,
+  "largest_semiprime": 99998,
+  "largest_factor": 313,
   "columns": [
     "N",
-    "p"
+    "p",
+    "q",
+    "N_binary",
+    "p_binary",
+    "N_bits",
+    "p_bits"
   ],
-  "generation_config": {
-    "name": "medium",
-    "num_samples": 20000,
-    "description": "N < 100,000 (Murat scale)",
-    "max_value": 100000
-  },
-  "data_leakage_verified": "NONE"
+  "random_seed": 42,
+  "train_test_split": "80/20"
 }

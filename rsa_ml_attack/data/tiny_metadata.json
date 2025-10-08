@@ -1,22 +1,26 @@
 {
-  "dataset_name": "tiny",
-  "description": "N < 1,000 (Testing scale)",
-  "num_samples": 50,
-  "max_value": 989,
-  "max_semiprime_bits": 10,
-  "max_factor_bits": 5,
-  "train_samples": 40,
-  "test_samples": 10,
-  "format": "clean_no_leakage",
+  "methodology": "exhaustive_enumeration_murat_et_al",
+  "description": "ALL semiprimes from 0 to 1,000 (complete enumeration)",
+  "scale_name": "tiny",
+  "upperbound": 1000,
+  "total_numbers_checked": 1001,
+  "total_semiprimes_found": 299,
+  "semiprime_density_percent": 29.87012987012987,
+  "max_N_bits": 10,
+  "max_p_bits": 5,
+  "train_samples": 239,
+  "test_samples": 60,
+  "largest_semiprime": 998,
+  "largest_factor": 31,
   "columns": [
     "N",
-    "p"
+    "p",
+    "q",
+    "N_binary",
+    "p_binary",
+    "N_bits",
+    "p_bits"
   ],
-  "generation_config": {
-    "name": "tiny",
-    "num_samples": 200,
-    "description": "N < 1,000 (Testing scale)",
-    "max_value": 1000
-  },
-  "data_leakage_verified": "NONE"
+  "random_seed": 42,
+  "train_test_split": "80/20"
 }
